@@ -1,5 +1,7 @@
 # Lokinet Proxy
 
+[![download image](https://img.shields.io/badge/download-image-%23007ec6?style=for-the-badge&logo=docker&logoColor=%232496ed)](https://github.com/pasabanov/lokinet-proxy/pkgs/container/lokinet-proxy)
+
 A lightweight **Docker** image for running [**Lokinet**](https://lokinet.io/) as a **SOCKS5 proxy** - a decentralized, privacy-preserving network built on the Oxen blockchain.
 
 This project provides an optimized **Docker** container that runs **Lokinet** as a **SOCKS5 proxy**, enabling you to route all your traffic through the **Lokinet** decentralized network with minimal configuration. Perfect for privacy-conscious users who want to leverage **Lokinet**'s anonymous routing capabilities through a simple **Docker** deployment.
@@ -323,6 +325,10 @@ docker build -t lokinet-proxy:local .
 # Run with Docker Compose
 docker-compose up -d
 ```
+
+## License
+
+See the [LICENSE](LICENSE) file.
 
 ## References
 
