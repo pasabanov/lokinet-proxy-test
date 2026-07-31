@@ -249,19 +249,11 @@ The `docker-entrypoint.sh` script performs the following steps:
 - **Dependencies**: iproute2, dante-server
 - **Lokinet Source**: Official Oxen repository (bookworm)
 
-## Automatic Updates
-
-This repository includes a GitHub Actions workflow that:
-
-- Automatically builds and publishes Docker images to GitHub Container Registry upon pushes to the `main` branch
-- Tags images with: `latest`, version number (e.g., `0.9.11`), and commit SHA
-- Supports manual workflow dispatch for on-demand builds
-
-### Image Tag Examples
+## Image Tag Examples
 
 - `ghcr.io/pasabanov/lokinet-proxy:latest` - Latest release
-- `ghcr.io/pasabanov/lokinet-proxy:0.9.11` - Specific version
-- `ghcr.io/pasabanov/lokinet-proxy:abc1234` - Specific commit
+- `ghcr.io/pasabanov/lokinet-proxy:1.2.3` - Specific version
+- `ghcr.io/pasabanov/lokinet-proxy:sha-abc1234` - Specific commit
 
 ## Troubleshooting
 
