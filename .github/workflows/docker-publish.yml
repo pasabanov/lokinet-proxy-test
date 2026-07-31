@@ -3,6 +3,7 @@ name: Build and Publish Lokinet Docker Image
 on:
   push:
     branches: [ main ]
+    tags: [ v* ]
   workflow_dispatch:
 
 env:
@@ -19,6 +20,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
@@ -31,76 +34,36 @@ jobs:
           # Remove the v prefix to make the image tag more standard (becomes 0.9.11)
           VERSION=${LATEST_TAG#v}
           echo "upstream_version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Fetched upstream Lokinet version: $VERSION"
+          echo "Fetched Lokinet version: $VERSION"
 
-      - name: Get previous successful build info
-        id: previous_build
+      - name: Determine image version
+        id: image_version
         run: |
-          # Get the last successful workflow run
-          RESPONSE=$(curl -s \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/docker-publish.yml/runs?status=success&per_page=1")
+          LATEST_TAG=$(git tag --sort=-v:refname | head -n1)
 
-          PREVIOUS_SHA=$(echo "$RESPONSE" | jq -r '.workflow_runs[0].head_commit.id // "none"')
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            CURRENT_TAG="${GITHUB_REF_NAME}"
 
-          echo "previous_sha=$PREVIOUS_SHA" >> $GITHUB_OUTPUT
-          echo "Previous successful commit: $PREVIOUS_SHA"
-
-      - name: Check if build is needed
-        id: build_check
-        run: |
-          VERSION=${{ steps.upstream_version.outputs.upstream_version }}
-          CURRENT_SHA=${{ github.sha }}
-          PREVIOUS_SHA=${{ steps.previous_build.outputs.previous_sha }}
-          IMAGE_NAME=${{ env.IMAGE_NAME }}
-
-          echo "Current commit SHA: $CURRENT_SHA"
-          echo "Previous commit SHA: $PREVIOUS_SHA"
-          echo "Upstream version: $VERSION"
-
-          # Check if version exists in registry
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
-            "https://ghcr.io/v2/$IMAGE_NAME/manifests/$VERSION" \
-            -H "Accept: application/vnd.docker.distribution.manifest.v2+json")
-
-          BUILD_NEEDED=false
-          BUILD_REASON=""
-
-          if [ "$RESPONSE" != "200" ]; then
-            BUILD_NEEDED=true
-            BUILD_REASON="New upstream version detected"
-            echo "✗ Version $VERSION is new in upstream"
-          else
-            echo "✓ Version $VERSION already exists in registry"
-          fi
-
-          # Check if there are new commits since last build
-          if [ "$CURRENT_SHA" != "$PREVIOUS_SHA" ] && [ "$PREVIOUS_SHA" != "none" ]; then
-            BUILD_NEEDED=true
-            if [ -z "$BUILD_REASON" ]; then
-              BUILD_REASON="New commits detected"
-            else
-              BUILD_REASON="$BUILD_REASON + New commits detected"
+            if [ "$CURRENT_TAG" != "$LATEST_TAG" ]; then
+              echo "Tag $CURRENT_TAG is not the latest version tag ($LATEST_TAG)"
+              echo "build_needed=false" >> $GITHUB_OUTPUT
+              exit 0
             fi
-            echo "✗ New commits detected since last build"
-          elif [ "$PREVIOUS_SHA" = "none" ]; then
-            echo "ℹ️  First build or no previous successful run"
-            BUILD_NEEDED=true
-            BUILD_REASON="Initial build"
-          fi
 
-          echo "build_needed=$BUILD_NEEDED" >> $GITHUB_OUTPUT
-          echo "build_reason=$BUILD_REASON" >> $GITHUB_OUTPUT
-
-          if [ "$BUILD_NEEDED" = "true" ]; then
-            echo "🔨 Build will proceed: $BUILD_REASON"
+            VERSION=${CURRENT_TAG#v}
+            echo "build_needed=true" >> $GITHUB_OUTPUT
+            echo "build_type=release" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "Image release: $VERSION"
           else
-            echo "⏭️  Build skipped: No changes detected"
+            echo "build_needed=true" >> $GITHUB_OUTPUT
+            echo "build_type=edge" >> $GITHUB_OUTPUT
+            echo "version=edge" >> $GITHUB_OUTPUT
+            echo "Edge build from main"
           fi
 
       - name: Log in to the Container registry
-        if: steps.build_check.outputs.build_needed == 'true'
+        if: steps.image_version.outputs.build_needed == 'true'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ${{ env.REGISTRY }}
@@ -108,19 +71,19 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
-        if: steps.build_check.outputs.build_needed == 'true'
+        if: steps.image_version.outputs.build_needed == 'true'
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # Auto-generate three types of tags: latest, specific version number, and commit sha
           tags: |
-            type=raw,value=latest
-            type=raw,value=${{ steps.upstream_version.outputs.upstream_version }}
-            type=sha,format=short
+            type=raw,value=${{ steps.image_version.outputs.version }}
+            type=raw,value=latest,enable=${{ steps.image_version.outputs.build_type == 'release' }}
+          labels: |
+            org.opencontainers.image.lokinet.version=${{ steps.upstream_version.outputs.upstream_version }}
 
       - name: Build and push Docker image
-        if: steps.build_check.outputs.build_needed == 'true'
+        if: steps.image_version.outputs.build_needed == 'true'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
@@ -130,9 +93,11 @@ jobs:
 
       - name: Build result notification
         run: |
-          if [ "${{ steps.build_check.outputs.build_needed }}" = "true" ]; then
-            echo "✅ Build completed"
-            echo "Reason: ${{ steps.build_check.outputs.build_reason }}"
+          if [ "${{ steps.image_version.outputs.build_needed }}" = "true" ]; then
+            echo "Build completed"
+            echo "Type: ${{ steps.image_version.outputs.build_type }}"
+            echo "Image version: ${{ steps.image_version.outputs.version }}"
+            echo "Lokinet version: ${{ steps.upstream_version.outputs.upstream_version }}"
           else
-            echo "⏭️  Build skipped: No changes detected"
+            echo "Build skipped: tag is not the latest version"
           fi
