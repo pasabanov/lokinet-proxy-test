@@ -29,34 +29,43 @@ jobs:
       - name: Determine image tags
         id: image_tags
         run: |
-          CURRENT_SHA='${{ github.sha }}'
-          LATEST_TAG=$(git tag --sort=-v:refname | head -n1)
+          COMMIT_SHA='${{ github.sha }}'
+          MAIN_SHA="$(git rev-parse origin/main)"
+
+          VERSION_TAG=$(git tag --points-at "$COMMIT_SHA" --list 'v*' --sort=-v:refname | head -n1)
+          LATEST_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n1)
+
           TAGS='type=sha,format=short'
 
-          VERSION_TAG=$(git tag --points-at "$CURRENT_SHA" --list 'v*' | sort -V | tail -n1)
-
           if [ -n "$VERSION_TAG" ]; then
-            VERSION=${VERSION_TAG#v}
-            TAGS="$TAGS"$'\n'"type=raw,value=$VERSION"
+            TAGS="$TAGS"$'\n'"type=raw,value=${VERSION_TAG#v}"
 
             if [ "$VERSION_TAG" = "$LATEST_TAG" ]; then
-              TAGS="$TAGS"$'\n'"type=raw,value=latest"
+              TAGS="$TAGS"$'\n''type=raw,value=latest'
             fi
           fi
 
-          if [ "$CURRENT_SHA" = "$(git rev-parse origin/main)" ]; then
-            TAGS="$TAGS"$'\n'"type=raw,value=edge"
+          if [ "$COMMIT_SHA" = "$MAIN_SHA" ]; then
+            TAGS="$TAGS"$'\n''type=raw,value=edge'
           fi
 
           echo 'tags<<EOF' >> "$GITHUB_OUTPUT"
           echo "$TAGS" >> "$GITHUB_OUTPUT"
           echo 'EOF' >> "$GITHUB_OUTPUT"
 
-          echo "Current commit: $CURRENT_SHA"
-          echo "Latest version tag: $LATEST_TAG"
+          echo "Current commit: $COMMIT_SHA"
+          echo "Main branch commit: $MAIN_SHA"
           echo "Current version tag: ${VERSION_TAG:-none}"
+          echo "Latest version tag: ${LATEST_TAG:-none}"
           echo 'Image tags:'
           echo "$TAGS"
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get latest Lokinet version
         id: lokinet_version
@@ -67,13 +76,6 @@ jobs:
           VERSION=${LATEST_TAG#v}
           echo "lokinet_version=$VERSION" >> $GITHUB_OUTPUT
           echo "Fetched Lokinet version: $VERSION"
-
-      - name: Log in to the Container registry
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata (tags, labels) for Docker
         id: meta
