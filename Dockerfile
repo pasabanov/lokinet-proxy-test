@@ -13,8 +13,7 @@ ENV LOKINET_EXIT_NODE=exit.loki
 RUN apt-get update && apt-get install -y ca-certificates && \
 	apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-COPY apt/oxen.gpg /etc/apt/keyrings/oxen.gpg
-COPY apt/oxen.sources /etc/apt/sources.list.d/oxen.sources
+COPY apt /etc/apt
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	lokinet iproute2 dante-server && \
