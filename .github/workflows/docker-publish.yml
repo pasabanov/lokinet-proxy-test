@@ -79,7 +79,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: ${{ steps.image_tags.outputs.tags }}
-          labels: org.opencontainers.image.lokinet.version=${{ steps.lokinet_version.outputs.lokinet_version }}
+          labels: |
+            org.opencontainers.image.created={{commit_date 'YYYY-MM-DDTHH:mm:ss.SSS[Z]'}}
+            org.opencontainers.image.lokinet.version=${{ steps.lokinet_version.outputs.lokinet_version }}
 
       - name: Get Git commit timestamp
         run: echo "GIT_COMMIT_TIMESTAMP=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
