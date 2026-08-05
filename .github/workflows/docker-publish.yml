@@ -70,7 +70,7 @@ jobs:
           # Fetch the tag_name of the latest official release
           TAG_NAME=$(curl -s https://api.github.com/repos/oxen-io/lokinet/releases/latest | jq -r .tag_name)
           VERSION=${TAG_NAME#v}
-          echo "lokinet_version=$VERSION" >> $GITHUB_OUTPUT
+          echo "lokinet_version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Fetched Lokinet version: $VERSION"
 
       - name: Extract metadata (tags, labels) for Docker
@@ -81,6 +81,9 @@ jobs:
           tags: ${{ steps.image_tags.outputs.tags }}
           labels: org.opencontainers.image.lokinet.version=${{ steps.lokinet_version.outputs.lokinet_version }}
 
+      - name: Get Git commit timestamp
+        run: echo "GIT_COMMIT_TIMESTAMP=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+
       - name: Build and push Docker image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
@@ -88,6 +91,8 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+        env:
+          SOURCE_DATE_EPOCH: ${{ env.GIT_COMMIT_TIMESTAMP }}
 
       - name: Build result notification
         run: |
