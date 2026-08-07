@@ -95,6 +95,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          outputs: type=image,rewrite-timestamp=true
         env:
           SOURCE_DATE_EPOCH: ${{ env.GIT_COMMIT_TIMESTAMP }}
 
