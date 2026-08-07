@@ -11,7 +11,7 @@ ENV LOKINET_EXIT_NODE=exit.loki
 # Installing build dependency
 # ca-certificates are needed to validate the HTTPS connection to the Oxen repository
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
-	apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+	apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /var/cache/*
 
 COPY apt /etc/apt
 
@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	lokinet iproute2 dante-server && \
 	# Removing build dependency
 	apt-get purge --auto-remove -y ca-certificates && \
-	apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+	apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /var/log/* /var/cache/*
 
 COPY --chmod=755 docker-entrypoint.sh /docker-entrypoint.sh
 
