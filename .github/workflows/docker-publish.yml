@@ -94,8 +94,10 @@ jobs:
           context: .
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,push=true,rewrite-timestamp=true
+          outputs: type=image,push=true,rewrite-timestamp=true,compression=zstd,compression-level=22,force-compression=true,compatibility-version=20
           build-args: SOURCE_DATE_EPOCH=${{ env.GIT_COMMIT_TIMESTAMP }}
+          no-cache: true
+          provenance: false
         env:
           SOURCE_DATE_EPOCH: ${{ env.GIT_COMMIT_TIMESTAMP }}
 
